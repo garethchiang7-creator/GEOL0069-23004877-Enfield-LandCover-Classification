@@ -2,15 +2,15 @@
 
 ## A Sentinel-2 Case Study of Enfield, London
 
-This project compares **K-means clustering** and **Random Forest classification** for four-class land-cover mapping in the London Borough of Enfield. The analysis uses a 2021 April-August Sentinel-2 Level-2A seasonal composite, Sentinel-2 cloud probability masking, and a remapped ESA WorldCover 2021 reference layer.
+This repository presents a GEOL0069 land-cover classification project comparing **K-means clustering** and **Random Forest classification** in the London Borough of Enfield. The analysis uses a **2021 April-August Sentinel-2 Level-2A seasonal composite**, Sentinel-2 cloud probability masking, and a remapped ESA WorldCover 2021 reference layer.
 
-The project is designed as a borough-scale classification comparison rather than a multi-year change detection study. Both methods use the same Sentinel-2 feature stack so that differences in the final outputs reflect the modelling approach rather than differences in input data.
+The project is a **single-year classification comparison**, not a multi-year change detection study. Both methods use the same Sentinel-2 feature stack, so differences in the outputs can be interpreted as differences in modelling approach rather than differences in input imagery.
 
 ## Research Question
 
 **How do supervised and unsupervised methods differ in their representation of borough-scale urban land cover in Enfield, and what does this reveal about interpretability, reference-label agreement, and computational cost?**
 
-The comparison focuses on four target classes:
+The comparison uses four target classes:
 
 - Built-up / Urban
 - Vegetation
@@ -19,15 +19,15 @@ The comparison focuses on four target classes:
 
 ## Project Motivation
 
-Urban land-cover classification is challenging because built surfaces, vegetation, water, and open ground often occur in close proximity and can overlap spectrally within the same Sentinel-2 neighbourhood. This is especially relevant in Enfield, where residential areas, parks, reservoirs, transport corridors, agricultural edges, and sparsely vegetated surfaces are all present within a single borough-scale study area.
+Urban land-cover classification is difficult because built surfaces, vegetation, water, bare ground, and open land often occur close together and can overlap spectrally within Sentinel-2 pixels. This is especially relevant in Enfield, where residential areas, parks, reservoirs, transport corridors, agricultural margins, and sparsely vegetated surfaces coexist within a compact borough-scale study area.
 
-The value of the study is not simply that Enfield contains diverse land-cover types. Rather, this diversity creates a practical classification problem: class boundaries are difficult to define, mixed pixels are common at 20 m resolution, and different classification methods may respond differently to the same urban landscape. This makes Enfield a useful case study for evaluating the trade-off between unsupervised spectral structure and supervised semantic consistency.
+The value of using Enfield is not simply that it contains diverse land-cover types. The important point is that this diversity creates a classification problem: class boundaries are spatially mixed, reference labels are imperfect, and different algorithms may respond differently to ambiguous urban surfaces. This makes Enfield a useful case study for evaluating the trade-off between unsupervised spectral structure and supervised semantic consistency.
 
 ## Study Area
 
-The study area is the **London Borough of Enfield**, defined using an official London borough boundary layer. Enfield is located in north London and contains a heterogeneous mixture of dense urban fabric, suburban residential areas, parks, reservoirs, river corridors, transport infrastructure, agricultural margins, and open or sparsely vegetated surfaces.
+The study area is the **London Borough of Enfield**, defined using an official London borough boundary layer. Enfield is located in north London and contains dense urban fabric, suburban residential areas, parks, reservoirs, river corridors, transport infrastructure, agricultural edges, and open or sparsely vegetated surfaces.
 
-This spatial mixture makes the borough suitable for evaluating how K-means and Random Forest handle ambiguity in urban land-cover mapping. At Sentinel-2 resolution, residential pixels may contain buildings, roads, gardens, street trees, and small green spaces, while open land and bare surfaces may overlap spectrally with dry grass, concrete, bright roofs, and rail corridors.
+At Sentinel-2 resolution, residential pixels may contain buildings, roads, gardens, street trees, and small green spaces. Similarly, open land and bare surfaces may overlap spectrally with dry grass, concrete, bright roofs, car parks, and rail corridors. This spatial and spectral mixture makes the borough suitable for comparing how K-means and Random Forest handle urban classification ambiguity.
 
 ![Study area](figures/study_area.png)
 
@@ -35,7 +35,7 @@ This spatial mixture makes the borough suitable for evaluating how K-means and R
 
 The workflow combines the Enfield boundary, Sentinel-2 Level-2A surface reflectance, Sentinel-2 cloud probability, and ESA WorldCover 2021 labels to produce an 8-feature Sentinel-2 array and a four-class reference label array for modelling.
 
-The analysis uses **April-August 2021** imagery. This leaf-on period was selected because vegetation is more spectrally distinct from built-up and bare surfaces, while avoiding unnecessary seasonal variation from winter conditions. A broad scene-level cloud filter (`CLOUDY_PIXEL_PERCENTAGE < 80`) is used to retain enough summer observations, while pixel-level cloud masking is applied more strictly using Sentinel-2 cloud probability (`CLOUD_PROB_THRESHOLD = 40`).
+The analysis uses **April-August 2021** imagery. This leaf-on period was selected because vegetation is more spectrally distinct from built-up and bare surfaces, while avoiding unnecessary seasonal variation from winter conditions. A broad scene-level cloud filter (`CLOUDY_PIXEL_PERCENTAGE < 80`) retains enough summer observations, while pixel-level cloud masking is applied more strictly using Sentinel-2 cloud probability (`CLOUD_PROB_THRESHOLD = 40`).
 
 A **20 m** analysis scale was selected as a practical compromise between spatial detail and Colab runtime stability. In the local GeoTIFF fallback workflow, the feature and label rasters are checked after loading to confirm that they use the same projected coordinate reference system and pixel size. The rasters are stored in **EPSG:32630 (UTM Zone 30N)**, whose map units are metres; therefore, class-area estimates treat each pixel as **20 m x 20 m** before converting totals to square kilometres.
 
@@ -53,9 +53,9 @@ A **20 m** analysis scale was selected as a practical compromise between spatial
 
 ## Method Overview
 
-Both classification methods use the same 2021 Sentinel-2 feature stack. The comparison therefore isolates the effect of the classification approach: K-means is used as an unsupervised spectral baseline, while Random Forest is used as a supervised label-driven classifier trained with the remapped WorldCover reference raster.
+Both classification methods use the same 2021 Sentinel-2 feature stack. The comparison therefore isolates the effect of the modelling approach: K-means is used as an unsupervised spectral baseline, while Random Forest is used as a supervised label-driven classifier trained with the remapped WorldCover reference raster.
 
-The feature stack contains Sentinel-2 spectral bands and two indices:
+The feature stack contains six Sentinel-2 spectral bands and two indices:
 
 - B2, B3, B4
 - B8, B11, B12
@@ -64,13 +64,13 @@ The feature stack contains Sentinel-2 spectral bands and two indices:
 
 ## K-means Workflow
 
-K-means is fitted to a scaled sample of valid Sentinel-2 pixels. The final model uses `k = 4` to match the shared four-class comparison framework, while elbow and silhouette diagnostics are reported as sensitivity checks rather than a purely automatic class-selection procedure.
+K-means is fitted to a scaled sample of valid Sentinel-2 pixels. The final model uses a pre-specified `k = 4` so that the unsupervised output can be translated into the same four target classes used by the Random Forest workflow. This choice is made for comparability, not because the diagnostics prove that Enfield naturally contains exactly four spectral groups.
 
 ![K-means workflow](figures/kmeans_workflow.png)
 
 ### K-means Diagnostics
 
-The elbow and silhouette plots provide practical guidance for the clustering step. They do not prove that Enfield naturally contains exactly four spectral groups, but they support the use of a compact cluster structure for comparison with the four target land-cover classes.
+The elbow and silhouette plots are reported to make the pre-specified `k = 4` choice transparent. The final value of `k` is not selected automatically from these diagnostics; it is fixed to match the four target land-cover classes used throughout the comparison.
 
 ![K-means diagnostics](figures/kmeans_diagnostics.png)
 
@@ -96,7 +96,9 @@ The final maps show the common four-class scheme produced by the unsupervised an
 
 ### Random Forest Evaluation
 
-The Random Forest model achieved strong agreement with the remapped WorldCover-derived labels under the spatial hold-out design. The confusion matrix and feature-importance panel show that vegetation and water are more reliably identified, while Open land / Bare is weaker because it has fewer reference samples and overlaps spectrally with several urban materials.
+The Random Forest model achieved an overall agreement of **0.898** and a Cohen's kappa of **0.822** against the remapped WorldCover-derived labels under the block-based spatial hold-out design. These values indicate strong reference-label agreement, but they should not be interpreted as independent field-validated accuracy.
+
+The confusion matrix and feature-importance panel show that Vegetation and Water are more reliably identified, while Open land / Bare is weaker because it has fewer reference samples and overlaps spectrally with several urban materials.
 
 ![Random Forest evaluation](figures/rf_evaluation.png)
 
@@ -108,10 +110,12 @@ The spatial hold-out split is shown explicitly to make the evaluation design vis
 
 ### Class Area Comparison
 
+Values are from the submitted reproducible run using `RANDOM_STATE = 42`.
+
 | Class | K-means (%) | Random Forest (%) | Difference, RF - K-means (pp) | Interpretation |
 |---|---:|---:|---:|---|
 | Built-up / Urban | 47.55 | 39.20 | -8.36 | RF maps less built-up land, reflecting closer alignment with the WorldCover reference-label scheme. |
-| Vegetation | 43.55 | 56.24 | +12.69 | RF maps more vegetation, likely influenced by gardens, parks, and mixed urban-green pixels. |
+| Vegetation | 43.55 | 56.24 | +12.69 | RF maps more vegetation, likely influenced by gardens, parks, and mixed urban-green pixels. This is the largest method difference in the table. |
 | Water | 3.78 | 4.04 | +0.26 | Very similar between methods, consistent with strong water separability. |
 | Open land / Bare | 5.12 | 0.53 | -4.60 | K-means allocates more area to spectrally bright or low-vegetation surfaces, while RF maps much of this into other reference classes. |
 
@@ -119,9 +123,11 @@ The spatial hold-out split is shown explicitly to make the evaluation design vis
 
 ### Where K-means Adds Value
 
-K-means adds value by exposing spectral structure that is compressed once the analysis is translated into a fixed four-class land-cover scheme. In this project, `k = 4` is used to match the shared comparison framework rather than to claim that Enfield naturally contains only four spectral groups. The cluster profile plot and post-hoc interpretation table show that Enfield contains clearly vegetated and water-dominated surfaces, as well as more ambiguous combinations of built materials, sparse vegetation, and open ground.
+K-means adds value by exposing spectral structure that is compressed once the analysis is translated into a fixed four-class land-cover scheme. In this project, `k = 4` is used to match the shared comparison framework rather than to claim that Enfield naturally contains only four spectral groups.
 
-The Built-up / Urban cluster should be read carefully. Its moderate NDVI indicates mixed urban fabric rather than pure impervious surface, which is plausible at 20 m resolution because residential pixels often contain buildings, roads, gardens, street trees, and small green spaces. K-means is therefore useful for spectral interpretation, but weaker as a final labelled land-cover map because its class names depend on post-hoc interpretation.
+The cluster profile plot and post-hoc interpretation table show that Enfield contains clearly vegetated and water-dominated surfaces, as well as more ambiguous combinations of built materials, sparse vegetation, and open ground. The Built-up / Urban cluster should be read carefully: its moderate NDVI indicates mixed urban fabric rather than pure impervious surface, which is plausible at 20 m resolution because residential pixels often contain buildings, roads, gardens, street trees, and small green spaces.
+
+K-means is therefore useful for spectral interpretation, but weaker as a final labelled land-cover map because its class names depend on post-hoc interpretation.
 
 ### Where Random Forest Is More Reliable
 
@@ -137,6 +143,8 @@ The Open land / Bare class should be interpreted most cautiously. It has far few
 
 The results show a trade-off between spectral flexibility and semantic consistency. K-means is useful for revealing internal variation and mixed urban surfaces, but it depends on post-hoc interpretation. Random Forest is more effective when the goal is a clearly labelled borough-scale product, but it is constrained by the quality, balance, and definitions of the reference labels used for training.
 
+Overall, the Enfield case study shows that the two methods answer different classification questions. Random Forest is better suited to producing a stable labelled land-cover product when a reference scheme is available, while K-means is more useful for exposing spectral ambiguity in mixed urban environments. The strongest interpretation therefore comes from reading the two outputs together rather than treating one method as a direct replacement for the other.
+
 ## Environmental Cost
 
 The computational footprint of the workflow is estimated from measured stage runtimes. The estimate reflects the executed Colab run with local fallback inputs and does not include the upstream cost of generating the GeoTIFF data package.
@@ -148,7 +156,7 @@ The workflow has a very small measured footprint because it uses CPU-only classi
 ## Repository Structure
 
 ```text
-GEOL0069-Enfield-LandCover-Classification/
+GEOL0069-23004877-Enfield-LandCover-Classification/
 |-- Enfield_LandCover_KMeans_RF_GEOL0069.ipynb
 |-- README.md
 |-- requirements.txt
@@ -183,17 +191,21 @@ pip install -r requirements.txt
 
 Breiman, L. (2001) 'Random forests', *Machine Learning*, 45, pp. 5-32. https://doi.org/10.1023/A:1010933404324
 
-ESA WorldCover Consortium (2021) *ESA WorldCover 10 m 2021 v200*. Available at: https://esa-worldcover.org/en
+ESA WorldCover Consortium (2021) *ESA WorldCover 10 m 2021 v200*. Available at: https://esa-worldcover.org/en (Accessed: 13 May 2026).
 
-Google Earth Engine Data Catalog (n.d.) *Harmonized Sentinel-2 MSI: MultiSpectral Instrument, Level-2A (SR)*, `COPERNICUS/S2_SR_HARMONIZED`. Available at: https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED
+Google Earth Engine Data Catalog (n.d.) *Harmonized Sentinel-2 MSI: MultiSpectral Instrument, Level-2A (SR)*, `COPERNICUS/S2_SR_HARMONIZED`. Available at: https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED (Accessed: 13 May 2026).
 
-Google Earth Engine Data Catalog (n.d.) *Sentinel-2: Cloud Probability*, `COPERNICUS/S2_CLOUD_PROBABILITY`. Available at: https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_CLOUD_PROBABILITY
+Google Earth Engine Data Catalog (n.d.) *Sentinel-2: Cloud Probability*, `COPERNICUS/S2_CLOUD_PROBABILITY`. Available at: https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_CLOUD_PROBABILITY (Accessed: 13 May 2026).
 
-Google Earth Engine Data Catalog (n.d.) *ESA WorldCover 10m v200*, `ESA/WorldCover/v200`. Available at: https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200
+Google Earth Engine Data Catalog (n.d.) *ESA WorldCover 10m v200*, `ESA/WorldCover/v200`. Available at: https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200 (Accessed: 13 May 2026).
 
-Greater London Authority (n.d.) *London Boroughs*. Available at: https://data.london.gov.uk/dataset/london_boroughs
+Gorelick, N., Hancher, M., Dixon, M., Ilyushchenko, S., Thau, D. and Moore, R. (2017) 'Google Earth Engine: Planetary-scale geospatial analysis for everyone', *Remote Sensing of Environment*, 202, pp. 18-27. https://doi.org/10.1016/j.rse.2017.06.031
+
+Greater London Authority (n.d.) *London Boroughs*. Available at: https://data.london.gov.uk/dataset/london_boroughs (Accessed: 13 May 2026).
 
 MacQueen, J. (1967) 'Some methods for classification and analysis of multivariate observations', in Le Cam, L. M. and Neyman, J. (eds.) *Proceedings of the Fifth Berkeley Symposium on Mathematical Statistics and Probability, Volume 1: Statistics*. Berkeley, CA: University of California Press, pp. 281-297.
+
+Pedregosa, F. et al. (2011) 'Scikit-learn: Machine Learning in Python', *Journal of Machine Learning Research*, 12, pp. 2825-2830. Available at: https://jmlr.org/papers/v12/pedregosa11a.html (Accessed: 13 May 2026).
 
 Rouse, J. W., Haas, R. H., Schell, J. A. and Deering, D. W. (1974) 'Monitoring vegetation systems in the Great Plains with ERTS', in *Proceedings of the Third Earth Resources Technology Satellite-1 Symposium*. NASA SP-351, Vol. 1, pp. 309-317.
 
